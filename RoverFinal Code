@@ -1,0 +1,113 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
+// --------- L298N MOTOR DRIVER PINS ---------
+// L298N #1 (Front motors)
+#define IN1 22
+#define IN2 23
+#define IN3 24
+#define IN4 25
+// L298N #2 (Middle motors)
+#define IN5 26
+#define IN6 27
+#define IN7 28
+#define IN8 29
+// L298N #3 (Rear motors)
+#define IN9 30
+#define IN10 31
+#define IN11 32
+#define IN12 33
+// --------- SERVO CHANNELS ON PCA9685 ---------
+#define FRONT_LEFT_SERVO 0
+#define FRONT_RIGHT_SERVO 1
+#define REAR_LEFT_SERVO 2
+#define REAR_RIGHT_SERVO 3
+// --------- SERVO ANGLES ---------
+int centerAngle = 90;
+int leftAngle = 60;
+int rightAngle = 120;
+// --------- SERIAL COMMAND VARIABLE ---------
+char command;
+void setup() {
+  Serial.begin(9600);      // Debug
+  Serial1.begin(9600);     // HC-05 Bluetooth communication
+  pwm.begin();
+  pwm.setPWMFreq(50);      // 50Hz for servos
+  // Initialize motor driver pins
+  int motorPins[] = {IN1, IN2, IN3, IN4, IN5, IN6, IN7, IN8, IN9, IN10, IN11, IN12};
+  for (int i = 0; i < 12; i++) {
+    pinMode(motorPins[i], OUTPUT);
+    digitalWrite(motorPins[i], LOW);
+  }
+  // Center all servos initially
+  centerAllServos();
+  Serial.println("Rover Initialized. Waiting for Bluetooth Commands...");
+}
+void loop() {
+  if (Serial1.available()) {
+    command = Serial1.read();
+    Serial.print("Received: ");
+    Serial.println(command);
+    handleCommand(command);
+  }
+}
+void handleCommand(char cmd) {
+  switch (cmd) {
+    case 'F': moveForward(); Serial.println("Forward"); break;
+    case 'B': moveBackward(); Serial.println("Backward"); break;
+    case 'S': stopMotors(); Serial.println("Stop"); break;
+    case 'L': steerLeft(); Serial.println("Turn Left"); break;
+    case 'R': steerRight(); Serial.println("Turn Right"); break;
+    case 'C': centerAllServos(); Serial.println("Center Steering"); break;
+    default: Serial.println("Unknown Command"); break;
+  }
+}
+// --------- MOTOR CONTROL FUNCTIONS ---------
+void moveForward() {
+  // Front
+  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);
+  // Middle
+  digitalWrite(IN5, HIGH); digitalWrite(IN6, LOW);
+  digitalWrite(IN7, HIGH); digitalWrite(IN8, LOW);
+  // Rear
+  digitalWrite(IN9, HIGH); digitalWrite(IN10, LOW);
+  digitalWrite(IN11, HIGH); digitalWrite(IN12, LOW);
+}
+void moveBackward() {
+  // Front
+  digitalWrite(IN1, LOW); digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW); digitalWrite(IN4, HIGH);
+  // Middle
+  digitalWrite(IN5, LOW); digitalWrite(IN6, HIGH);
+  digitalWrite(IN7, LOW); digitalWrite(IN8, HIGH);
+  // Rear
+  digitalWrite(IN9, LOW); digitalWrite(IN10, HIGH);
+  digitalWrite(IN11, LOW); digitalWrite(IN12, HIGH);
+}
+void stopMotors() {
+  for (int i = 22; i <= 33; i++) digitalWrite(i, LOW);
+}
+// --------- SERVO CONTROL FUNCTIONS ---------
+void steerLeft() {
+  setServoAngle(FRONT_LEFT_SERVO, leftAngle);
+  setServoAngle(FRONT_RIGHT_SERVO, leftAngle);
+  setServoAngle(REAR_LEFT_SERVO, leftAngle);
+  setServoAngle(REAR_RIGHT_SERVO, leftAngle);
+}
+void steerRight() {
+  setServoAngle(FRONT_LEFT_SERVO, rightAngle);
+  setServoAngle(FRONT_RIGHT_SERVO, rightAngle);
+  setServoAngle(REAR_LEFT_SERVO, rightAngle);
+  setServoAngle(REAR_RIGHT_SERVO, rightAngle);
+}
+void centerAllServos() {
+  setServoAngle(FRONT_LEFT_SERVO, centerAngle);
+  setServoAngle(FRONT_RIGHT_SERVO, centerAngle);
+  setServoAngle(REAR_LEFT_SERVO, centerAngle);
+  setServoAngle(REAR_RIGHT_SERVO, centerAngle);
+}
+void setServoAngle(int servoNum, int angle) {
+  int pulse = map(angle, 0, 180, 100, 500); 
+  pwm.setPWM(servoNum, 0, pulse);
+}
